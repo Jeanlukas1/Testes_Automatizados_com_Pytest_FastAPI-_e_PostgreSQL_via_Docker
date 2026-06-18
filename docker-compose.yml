@@ -1,0 +1,67 @@
+# =============================================================================
+# Docker Compose — E-commerce API
+# Dois bancos PostgreSQL separados:
+#   • db       (porta 5432) → banco de desenvolvimento, com volume persistente
+#   • db_test  (porta 5433) → banco de testes, sem volume (dados descartáveis)
+# =============================================================================
+
+services:
+
+  # ── Banco de desenvolvimento ──────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: ecommerce_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: univassouras
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # ← volume nomeado: dados persistentes
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ecommerce"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Banco de testes ───────────────────────────────────────────────────────
+  db_test:
+    image: postgres:16-alpine
+    container_name: ecommerce_db_test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: univassouras
+      POSTGRES_DB: ecommerce_test
+    ports:
+      - "5433:5432"
+    # Sem volume: dados descartáveis — cada rodada de testes começa limpa
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ecommerce_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── API (opcional — sobe junto com o banco de dev) ────────────────────────
+  api:
+    build: .
+    container_name: ecommerce_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/ecommerce
+      DEBUG: "false"
+    depends_on:
+      db:
+        condition: service_healthy  # ← aguarda o banco estar healthy antes de subir
+    volumes:
+      - .:/app  # hot-reload no desenvolvimento
+
+volumes:
+  pgdata:
+    name: ecommerce_pgdata
