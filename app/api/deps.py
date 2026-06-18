@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db() -> Generator[Session, None, None]:  # pragma: no cover
     """
     Dependency que fornece uma sessão de banco de dados por request.
 
@@ -26,6 +26,10 @@ def get_db() -> Generator[Session, None, None]:
 
     Garante que a sessão seja sempre fechada, mesmo em caso de exceção,
     graças ao bloco finally.
+
+    Nota: esta função é sempre substituída em testes via
+    app.dependency_overrides[get_db], portanto nunca é executada
+    diretamente nos testes (pragma: no cover intencional).
     """
     db = SessionLocal()
     try:

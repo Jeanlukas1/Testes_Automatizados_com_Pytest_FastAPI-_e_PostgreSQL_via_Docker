@@ -457,3 +457,181 @@ def test_health_check(client: TestClient) -> None:
     data = response.json()
     assert data["status"] == "healthy"
     assert data["database"] == "connected"
+
+
+# =============================================================================
+# 20. Criar categoria
+# =============================================================================
+
+
+def test_criar_categoria(client):
+    """POST /api/v1/categorias — 201 + campos corretos. Cobre router linha 39,
+    CategoriaRepository.create, CategoriaService.criar."""
+    payload = {"nome": "Eletrônicos", "descricao": "Produtos eletrônicos"}
+    response = client.post("/api/v1/categorias", json=payload)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["id"] > 0
+    assert data["nome"] == "Eletrônicos"
+    assert "created_at" in data
+
+
+# =============================================================================
+# 21. Listar categorias
+# =============================================================================
+
+
+def test_listar_categorias(client):
+    """GET /api/v1/categorias — lista ordenada. Cobre router linha 25,
+    CategoriaRepository.get_all."""
+    client.post("/api/v1/categorias", json={"nome": "Roupas"})
+    client.post("/api/v1/categorias", json={"nome": "Calçados"})
+
+    response = client.get("/api/v1/categorias")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    nomes = [c["nome"] for c in data]
+    assert nomes == sorted(nomes)
+
+
+# =============================================================================
+# 22. Buscar categoria por ID
+# =============================================================================
+
+
+def test_buscar_categoria_por_id(client):
+    """GET /api/v1/categorias/{id} — 200. Cobre router linha 52,
+    CategoriaRepository.get_by_id."""
+    criado = client.post("/api/v1/categorias", json={"nome": "Informática"}).json()
+
+    response = client.get(f"/api/v1/categorias/{criado['id']}")
+
+    assert response.status_code == 200
+    assert response.json()["nome"] == "Informática"
+
+
+# =============================================================================
+# 23. Buscar categoria inexistente — 404
+# =============================================================================
+
+
+def test_buscar_categoria_inexistente_404(client):
+    """GET /api/v1/categorias/999999 — 404. Cobre CategoriaService linha 96/99."""
+    response = client.get("/api/v1/categorias/999999")
+
+    assert response.status_code == 404
+    assert "999999" in response.json()["detail"]
+
+
+# =============================================================================
+# 24. Criar categoria duplicada — 409
+# =============================================================================
+
+
+def test_criar_categoria_duplicada_retorna_409(client):
+    """POST categoria com nome já existente — 409. Cobre CategoriaService
+    linha 102-108, CategoriaRepository.get_by_nome."""
+    client.post("/api/v1/categorias", json={"nome": "Esportes"})
+    response = client.post("/api/v1/categorias", json={"nome": "Esportes"})
+
+    assert response.status_code == 409
+    assert "Esportes" in response.json()["detail"]
+
+
+# =============================================================================
+# 25. Criar categoria com nome vazio — 422
+# =============================================================================
+
+
+def test_criar_categoria_nome_vazio_422(client):
+    """POST categoria nome vazio/espacos — 422. Cobre schema CategoriaCreate
+    linhas 40-43."""
+    assert client.post("/api/v1/categorias", json={"nome": ""}).status_code == 422
+    assert client.post("/api/v1/categorias", json={"nome": "   "}).status_code == 422
+
+
+# =============================================================================
+# 26. Produto com categoria + filtro por categoria_id
+# =============================================================================
+
+
+def test_produto_com_categoria_e_filtro(client):
+    """Vincula produto a categoria e filtra por categoria_id. Cobre repositório
+    linha 55 (filtro categoria_id) e response aninhado com categoria."""
+    cat = client.post("/api/v1/categorias", json={"nome": "Games"}).json()
+    cat_id = cat["id"]
+
+    client.post("/api/v1/produtos", json={
+        "nome": "Controle PS5", "preco": 399.0,
+        "estoque": 5, "categoria_id": cat_id
+    })
+    client.post("/api/v1/produtos", json={
+        "nome": "Teclado Mecânico", "preco": 250.0, "estoque": 10
+    })
+
+    response = client.get(f"/api/v1/produtos?categoria_id={cat_id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["nome"] == "Controle PS5"
+    assert data["items"][0]["categoria"]["nome"] == "Games"
+
+
+# =============================================================================
+# 27. PATCH com nome inválido — 422
+# =============================================================================
+
+
+def test_patch_nome_invalido_422(client, produto_existente):
+    """PATCH nome vazio/espacos — 422. Cobre ProdutoUpdate.nome_valido
+    linhas 123-128 de schemas.py."""
+    pid = produto_existente["id"]
+
+    assert client.patch(f"/api/v1/produtos/{pid}", json={"nome": ""}).status_code == 422
+    assert client.patch(f"/api/v1/produtos/{pid}", json={"nome": "   "}).status_code == 422
+
+
+# =============================================================================
+# 28. PATCH com preco inválido — 422
+# =============================================================================
+
+
+def test_patch_preco_invalido_422(client, produto_existente):
+    """PATCH preco=0 ou negativo — 422. Cobre ProdutoUpdate.preco_positivo
+    linha 135 de schemas.py."""
+    pid = produto_existente["id"]
+
+    assert client.patch(f"/api/v1/produtos/{pid}", json={"preco": 0}).status_code == 422
+    assert client.patch(f"/api/v1/produtos/{pid}", json={"preco": -1.0}).status_code == 422
+
+
+# =============================================================================
+# 29. PATCH com estoque negativo — 422
+# =============================================================================
+
+
+def test_patch_estoque_negativo_422(client, produto_existente):
+    """PATCH estoque negativo — 422. Cobre ProdutoUpdate.estoque_nao_negativo
+    linha 142 de schemas.py."""
+    pid = produto_existente["id"]
+
+    assert client.patch(f"/api/v1/produtos/{pid}", json={"estoque": -5}).status_code == 422
+
+
+# =============================================================================
+# 30. POST com nome muito longo — 422
+# =============================================================================
+
+
+def test_criar_produto_nome_muito_longo_422(client):
+    """POST com nome de 256 chars — 422. Cobre ProdutoCreate.nome_valido
+    linha 84 de schemas.py."""
+    response = client.post("/api/v1/produtos", json={
+        "nome": "X" * 256, "preco": 10.0
+    })
+
+    assert response.status_code == 422

@@ -58,7 +58,7 @@ class Categoria(Base):
     # Relacionamento reverso — acesso via categoria.produtos
     produtos = relationship("Produto", back_populates="categoria", lazy="select")
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         return f"<Categoria id={self.id} nome={self.nome!r}>"
 
 
@@ -112,7 +112,7 @@ class Produto(Base):
         Index("ix_produtos_categoria_id", "categoria_id"),
     )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         return f"<Produto id={self.id} nome={self.nome!r} preco={self.preco}>"
 
 
@@ -144,7 +144,7 @@ class AuditLog(Base):
         Index("ix_audit_log_entidade_id", "entidade", "entidade_id"),
     )
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         return (
             f"<AuditLog id={self.id} entidade={self.entidade!r} "
             f"operacao={self.operacao!r}>"
