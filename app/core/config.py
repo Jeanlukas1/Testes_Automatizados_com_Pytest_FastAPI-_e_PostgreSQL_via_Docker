@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # ── Banco de dados ────────────────────────────────────────────────────────
     # Valor padrão aponta para o banco de dev local; em produção/CI, sobrescreva
     # via variável de ambiente DATABASE_URL
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/ecommerce"
+    DATABASE_URL: str = "postgresql://postgres:univassouras@localhost:5432/ecommerce"
 
     # ── Metadados da aplicação ────────────────────────────────────────────────
     APP_NAME: str = "E-commerce API"

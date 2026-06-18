@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: univassouras
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-univassouras}
       POSTGRES_DB: ecommerce_test
     ports:
       - "5433:5432"
@@ -54,7 +54,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/ecommerce
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-univassouras}@db:5432/ecommerce
       DEBUG: "false"
     depends_on:
       db:
